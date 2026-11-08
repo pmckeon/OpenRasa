@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>extern_gameclient_entitybody.CreateBody - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="extern_gameclient_entitybody.html">extern_gameclient_entitybody</a> » CreateBody</div>
+<h1>extern_gameclient_entitybody.CreateBody Function</h1><h2 id="definition">Definition</h2><p>Creates the body of an entity.</p><span class="sig">CreateBody(entityId, meshName[, lodMeshName[, lodScreenPercentage[, meshId]]])</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">entityId</span><span class="ptype">long</span><p>The entity.</p></div><div class="param"><span class="sig">meshName</span><span class="ptype">str</span><p>The model (<code>.geo</code>).</p></div><div class="param"><span class="sig">lodMeshName</span><span class="ptype">str</span><p>A lower-detail model.</p></div><div class="param"><span class="sig">lodScreenPercentage</span><span class="ptype">float</span><p>The screen size below which the LOD model is used.</p></div><div class="param"><span class="sig">meshId</span><span class="ptype">int</span><p>The model&#x27;s string-table id.</p></div><h2 id="returns">Returns</h2><p>The new <a href="extern_gameclient_entitybody.entitybody.html">EntityBody</a>.</p><h2 id="remarks">Remarks</h2><p>In static mode (<a href="extern_gameclient_entitybody.setstaticmode.html">SetStaticMode</a>) the body is a static map body: it gets an empty scene body and a load record in the static grid, and is loaded and unloaded as the camera streams the map; the StaticBody... functions then edit its record.</p><h2 id="engine">Engine</h2><p class="muted">tabula_rasa.exe: 0x005126d0 (static: FUN_00511da0).</p><div class="pn"><span>« <a href="extern_gameclient_entitybody.createwrapper.html">CreateWrapper</a></span><span><a href="extern_gameclient_entitybody.setstaticmode.html">SetStaticMode</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

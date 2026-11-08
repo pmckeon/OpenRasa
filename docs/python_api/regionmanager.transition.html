@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>RegionManager.Transition - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="regionmanager.html">RegionManager</a> » Transition</div>
+<h1>RegionManager.Transition Method</h1><h2 id="definition">Definition</h2><p>Applies the regions the player is in.</p><span class="sig">Transition(initial, regions)</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">initial</span><span class="ptype">bool</span></div><div class="param"><span class="sig">regions</span><span class="ptype">list</span><p>regionmanager.py&#x27;s region tuples (priority, enabledFlags, ambient, music, environment map, sky, display name id), sorted by priority.</p></div><h2 id="returns">Returns</h2><p>None.</p><h2 id="remarks">Remarks</h2><p>Per enabledFlags bit the first region with it supplies that feature: bit 0 sky, 1 environment map, 2 ambient sound, 3 music, 4 the shown name (which calls client.gameui.DisplayRegionName). An empty list changes nothing.</p><h2 id="engine">Engine</h2><p class="muted">tabula_rasa.exe: 0x0052c060 -&gt; FUN_0077d150.</p><div class="pn"><span></span><span><a href="regionmanager.settranssky.html">SetTransSky</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

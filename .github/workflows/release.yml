@@ -1,0 +1,116 @@
+# Builds the OpenRasa packages for Windows and Linux and, for a version tag, publishes them as a GitHub release.
+#   push a tag v<x.y.z>      builds both; the packages go into the release "OpenRasa <x.y.z>"
+#   Actions > Release > Run workflow     builds the packages only (download them from the run's artifacts)
+# The package version comes from git (cmake/PackageVersion.cmake), so the checkout carries the full history and tags.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The vcpkg commit the libraries are built from (vcpkg.json has no baseline): the one the Linux build was checked with.
+  VCPKG_COMMIT: 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-2022
+          - name: Linux
+            # The oldest supported runner: the binary needs the glibc it was built against or newer (22.04: glibc 2.35).
+            os: ubuntu-22.04
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/../vcpkg
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/../vcpkg-cache,readwrite
+      BUILD_NOPAUSE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Linux build tools and SDL3's libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git curl zip unzip tar pkg-config autoconf autoconf-archive \
+            automake libtool python3 python3-venv python3-pip nasm bison flex autopoint gettext libltdl-dev perl \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libegl1-mesa-dev libgl1-mesa-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev \
+            libudev-dev libdbus-1-dev libibus-1.0-dev libvulkan-dev
+
+      - name: vcpkg
+        shell: bash
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          git -C "$VCPKG_ROOT" checkout --quiet "$VCPKG_COMMIT"
+          mkdir -p "${{ github.workspace }}/../vcpkg-cache"
+          if [ "$RUNNER_OS" = "Windows" ]; then "$VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics; else "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics; fi
+
+      # Built libraries are kept between runs (the first build compiles every library: about 20 minutes).
+      - name: Restore built libraries
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/../vcpkg-cache
+          key: vcpkg-${{ matrix.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'triplets/**') }}-${{ github.run_id }}
+          restore-keys: vcpkg-${{ matrix.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'triplets/**') }}-
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: build.cmd package
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: ./build.sh package
+
+      - name: Save built libraries
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/../vcpkg-cache
+          key: vcpkg-${{ matrix.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'triplets/**') }}-${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenRasa-${{ matrix.name }}
+          path: |
+            out/build/release/package/*.zip
+            out/build/release/package/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: OpenRasa-*
+          path: packages
+          merge-multiple: true
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" packages/* --clobber
+          else
+            gh release create "$TAG" packages/* --verify-tag --title "OpenRasa ${TAG#v}" --generate-notes
+          fi

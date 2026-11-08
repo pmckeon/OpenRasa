@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>extern_gameclient_gameclient.GameClient.ParseClientCommand - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="extern_gameclient_gameclient.html">extern_gameclient_gameclient</a> » <a href="extern_gameclient_gameclient.gameclient.html">GameClient</a> » ParseClientCommand</div>
+<h1>extern_gameclient_gameclient.GameClient.ParseClientCommand Method</h1><h2 id="definition">Definition</h2><p>Runs a client debug command (chat <code>/cl_&lt;name&gt;</code>).</p><span class="sig">ParseClientCommand(command, arguments)</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">command</span><span class="ptype">str</span><p><code>cl_hue2test</code> or <code>cl_reloadcameras</code>.</p></div><div class="param"><span class="sig">arguments</span><span class="ptype">str</span><p>Comma-separated arguments.</p></div><h2 id="returns">Returns</h2><p>None.</p><h2 id="remarks">Remarks</h2><p><code>cl_hue2test r,g,b,a,r,g,b,a</code> (0 - 255) applies a second hue to every body; <code>cl_reloadcameras</code> reads the camera profiles again (cameraprofiles.xml, _custom, _internal).</p><div class="note"><p><strong>OpenRasa</strong></p><p>cl_hue2test has no visible effect (the second hue is not drawn).</p></div><h2 id="engine">Engine</h2><p class="muted">tabula_rasa.exe: FUN_004d6270.</p><div class="pn"><span>« <a href="extern_gameclient_gameclient.gameclient.onclearmap.html">OnClearMap</a></span><span><a href="extern_gameclient_gameclient.gameclient.parsedlcommand.html">ParseDLCommand</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>extern_gameclient_entitybody.EntityBodyBase.SetCollisionRole - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="extern_gameclient_entitybody.html">extern_gameclient_entitybody</a> » <a href="extern_gameclient_entitybody.entitybodybase.html">EntityBodyBase</a> » SetCollisionRole</div>
+<h1>extern_gameclient_entitybody.EntityBodyBase.SetCollisionRole Method</h1><h2 id="definition">Definition</h2><p>Sets the body&#x27;s collision role.</p><span class="sig">SetCollisionRole(role)</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">role</span><span class="ptype">int</span><p>The role.</p><div class="tbl"><table><thead><tr><th>Value</th><th>Meaning</th></tr></thead><tbody><tr><td>1</td><td>None.</td></tr><tr><td>2</td><td>Restricted collider (characters, creatures, vehicles).</td></tr><tr><td>3</td><td>Collider.</td></tr><tr><td>4</td><td>Collidee (ABVs, doors, force fields).</td></tr><tr><td>5</td><td>Trigger collidee.</td></tr><tr><td>6</td><td>Trigger collidee with line of sight.</td></tr></tbody></table></div></div><h2 id="returns">Returns</h2><p>None.</p><h2 id="remarks">Remarks</h2><p>classmanager.py sets the entity class&#x27;s role. The role decides which of the collision manager&#x27;s lists the body joins when added to the world.</p><h2 id="engine">Engine</h2><p class="muted">tabula_rasa.exe: 0x00905fc0 (+ 0x30).</p><div class="pn"><span>« <a href="extern_gameclient_entitybody.entitybodybase.setisactor.html">SetIsActor</a></span><span><a href="extern_gameclient_entitybody.entitybodybase.sethassenses.html">SetHasSenses</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

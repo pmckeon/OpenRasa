@@ -1,0 +1,25 @@
+# Build output
+out/
+build/
+
+# CMake run in the source folder instead of a preset (the presets build into out/)
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+/build.ninja
+/.ninja_*
+
+# IDE and per-user settings
+.vs/
+.vscode/
+.idea/
+*.user
+CMakeUserPresets.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / tool backups
+*.bak

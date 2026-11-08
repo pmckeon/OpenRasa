@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>extern_gameclient_entitybody.EntityBody.AddBoneTracker - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="extern_gameclient_entitybody.html">extern_gameclient_entitybody</a> » <a href="extern_gameclient_entitybody.entitybody.html">EntityBody</a> » AddBoneTracker</div>
+<h1>extern_gameclient_entitybody.EntityBody.AddBoneTracker Method</h1><h2 id="definition">Definition</h2><p>Adds a bone tracker: bones that turn to look at a target.</p><span class="sig">AddBoneTracker(id, bones)</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">id</span><span class="ptype">int</span><p>The tracker&#x27;s id (generated.client.bonetracking).</p></div><div class="param"><span class="sig">bones</span><span class="ptype">list</span><p>Tuples (bone name, connection point or None, yaw weight, pitch weight, yaw accept, pitch accept, yaw limit, pitch limit, speed): weights 0 - 1, angles in degrees (0 - 180), speed in degrees a second.</p></div><h2 id="returns">Returns</h2><p>None.</p><h2 id="remarks">Remarks</h2><p>A target outside the accept angles is ignored (the bone returns to 0); the turn is clamped to the limits and the speed. A tracker of that id that exists is kept.</p><h2 id="engine">Engine</h2><p class="muted">tabula_rasa.exe: FUN_004ff380.</p><div class="pn"><span>« <a href="extern_gameclient_entitybody.entitybody.addaccessory.html">AddAccessory</a></span><span><a href="extern_gameclient_entitybody.entitybody.addrelevancebuff.html">AddRelevanceBuff</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

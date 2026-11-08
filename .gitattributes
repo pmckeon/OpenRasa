@@ -1,0 +1,3 @@
+# Line endings the shells need, whatever core.autocrlf says
+*.sh  text eol=lf
+*.cmd text eol=crlf

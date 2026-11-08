@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- OpenRasa icon: a wormhole portal (event horizon). -->
+  <defs>
+    <radialGradient id="disc" cx="50%" cy="48%" r="52%">
+      <stop offset="0" stop-color="#14305e"/>
+      <stop offset="0.55" stop-color="#0b1838"/>
+      <stop offset="1" stop-color="#050a18"/>
+    </radialGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.3" stop-color="#e4f8ff"/>
+      <stop offset="0.6" stop-color="#7fd4ff"/>
+      <stop offset="1" stop-color="#1a5a9c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fd4ff" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#7fd4ff" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <circle cx="128" cy="128" r="120" fill="url(#disc)"/>
+  <circle cx="128" cy="128" r="118.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+
+
+  <g fill="none" stroke-linecap="round" filter="url(#glow)">
+    <path d="M119.1 26.4 A102 102 0 0 1 229.6 136.9" stroke="#3fb4f5" stroke-width="7"/>
+    <path d="M220.4 171.1 A102 102 0 0 1 69.5 211.6" stroke="#3fb4f5" stroke-width="7"/>
+    <path d="M44.4 186.5 A102 102 0 0 1 84.9 35.6" stroke="#3fb4f5" stroke-width="7"/>
+    <path d="M193.8 90.0 A76 76 0 0 1 166.0 193.8" stroke="#7fd4ff" stroke-width="5"/>
+    <path d="M128.0 204.0 A76 76 0 0 1 52.0 128.0" stroke="#7fd4ff" stroke-width="5"/>
+    <path d="M62.2 90.0 A76 76 0 0 1 166.0 62.2" stroke="#7fd4ff" stroke-width="5"/>
+  </g>
+
+  <!-- Electric arcs from the middle of each outer arc, through the inner ring's gaps, into the core. -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+    <path d="M197.3 58.7 L194.6 69.8 L179.2 68.1 L181.9 84.5 L166.2 82.6 L166.4 96.5 L152.6 96.5 L149.2 106.8" stroke="#7fd4ff" stroke-width="6" opacity="0.55"/>
+    <path d="M197.3 58.7 L194.6 69.8 L179.2 68.1 L181.9 84.5 L166.2 82.6 L166.4 96.5 L152.6 96.5 L149.2 106.8" stroke="#f2fbff" stroke-width="2.2"/>
+    <path d="M153.4 222.7 L146.4 214.5 L154.0 202.4 L139.9 196.1 L149.5 183.5 L137.6 176.6 L142.0 165.4 L135.8 157.0" stroke="#7fd4ff" stroke-width="6" opacity="0.55"/>
+    <path d="M153.4 222.7 L146.4 214.5 L154.0 202.4 L139.9 196.1 L149.5 183.5 L137.6 176.6 L142.0 165.4 L135.8 157.0" stroke="#f2fbff" stroke-width="2.2"/>
+    <path d="M33.3 102.6 L43.8 101.1 L50.2 114.7 L63.1 104.0 L70.0 115.9 L82.0 108.7 L88.0 123.8 L99.0 120.2" stroke="#7fd4ff" stroke-width="6" opacity="0.55"/>
+    <path d="M33.3 102.6 L43.8 101.1 L50.2 114.7 L63.1 104.0 L70.0 115.9 L82.0 108.7 L88.0 123.8 L99.0 120.2" stroke="#f2fbff" stroke-width="2.2"/>
+  </g>
+  <circle cx="128" cy="128" r="56" fill="#5ac8ff" opacity="0.35" filter="url(#soft)"/>
+  <circle cx="128" cy="128" r="48" fill="url(#core)"/>
+
+</svg>

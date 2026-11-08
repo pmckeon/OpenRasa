@@ -1,0 +1,96 @@
+from spec_a import F, CW, NOINIT
+
+B = lambda name, desc, sig="", params=(), ret="None.", **kw: F(name, sig, desc, params, ret, **kw)
+NORMAL = "Only in UserMode Normal; the other modes do nothing."
+FLAGARG = [("flag", "bool", "True while the key is held.")]
+TT = "[[extern_gameclient_usercontroller.targettype|TargetType]]"
+
+UC = [
+    B("GetCurrentMode", "Gets the controller's mode.", ret="A [[extern_gameclient_usercontroller.usermode|UserMode]]."),
+    B("SetCurrentMode", "Switches the controller's mode.", "mode", [("mode", "UserMode", "A [[extern_gameclient_usercontroller.usermode|UserMode]] value (a plain int is refused).")],
+      errors=[("TypeError", "mode is not a UserMode.")],
+      remarks="The old mode is left (Normal writes its camera options back) and the new one takes the camera: Detached starts at the camera's pose, CameraCut remembers it to return to.",
+      engine="0x004f6b60 -> FUN_004f51d0."),
+    # movement / look
+    B("Move", "Moves the character.", "direction, rate", [("direction", "int", "The movement direction flags (bits 0 - 2)."), ("rate", "int", "0 stand, 1 walk, 2 run.")], remarks=NORMAL),
+    B("Stop", "Stops the free camera's movement (Detached mode).", remarks="Detached clears its movement flags; the other modes do nothing."),
+    *[B(n, f"Moves the free camera {w} while held (Detached mode).", "flag", FLAGARG, remarks=f"Detached flag {b}; the other modes do nothing.")
+      for n, w, b in [("MoveForward", "forward", 1), ("MoveBackward", "backward", 2), ("MoveLeft", "left", 4), ("MoveRight", "right", 8)]],
+    *[B(n, f"Turns the view {w} while held.", "flag", FLAGARG, remarks="Each frame a held key adds 20 units of mouse look to the current mode (not in CameraCut).")
+      for n, w in [("TurnLeft", "left"), ("TurnRight", "right"), ("LookUp", "up"), ("LookDown", "down")]],
+    B("SetMovementRate", "Sets the movement rate.", "rate", [("rate", "float", "Normal: stored; Detached: the free camera's speed in m per ms (0.005 by default).")]),
+    B("GetMovementRate", "Gets the movement rate.", ret="A float; 0 in CameraCut."),
+    B("RequestCharacterMovementBlock", "Blocks the character's movement (counted).",
+      remarks="While blocked: no steps on the ground, no turns, no jumps, no facing changes from the camera."),
+    B("UnrequestCharacterMovementBlock", "Releases one movement block."),
+    B("StartMouseLook", "Starts mouse look: the cursor is hidden and the mouse turns the camera.",
+      remarks="The reticle is put at the root window's centre.", engine="0x004f5570."),
+    B("StopMouseLook", "Ends mouse look."),
+    B("MouseLookHandler", "Feeds mouse motion to the current mode's look (not in CameraCut).", engine="FUN_004f5950.",
+      openrasa="The engine reads the mouse itself; the call does nothing."),
+    B("SetLockFacing", "Sets whether the character keeps facing the camera's direction.", "flag", [("flag", "bool", "")]),
+    B("GetLockFacing", "Gets the lock-facing flag.", ret="True or False."),
+    B("SetCameraRelativeMovement", "Sets whether movement is relative to the camera.", "flag", [("flag", "bool", "")]),
+    B("GetCameraRelativeMovement", "Gets the camera-relative movement flag.", ret="True or False."),
+    B("SyncBodyToCamera", "Turns the character to the camera's direction at once.", remarks=NORMAL + " The yaw and facing are set directly (no OnFacingChange).", engine="FUN_0054e130."),
+    B("SyncBoneTrackerToCamera", "Aims a bone tracker along the camera's direction.", "id", [("id", "int", "The tracker id.")], remarks=NORMAL, engine="FUN_0054e0e0."),
+    # camera
+    B("Reset", "Resets the camera.", remarks="Normal: the profile's distance range again and the camera turned to look the way the character faces; the other modes do nothing.", engine="0x004f57b0."),
+    B("PanCamera", "Moves the camera in or out (the mouse wheel).", "farther", [("farther", "bool", "True to move out.")],
+      remarks="Normal: the zoom (0 - 1, 1 farthest) changes by 0.1; Detached: the wheel flags move the free camera.", engine="0x004f6b10."),
+    B("CycleCamera", "Switches to the next or previous camera profile.", "next", [("next", "bool", "")], remarks=NORMAL + " The profile's NextProfile / PrevProfile (`Default` when it names none).", engine="FUN_0054e040."),
+    B("ToggleCameraZoom", "Toggles the zoomed camera (the middle mouse button).", remarks=NORMAL + " The zoom profile is the body's `<mesh>-zoom`, else SetCameraZoomProfile's, else `<profile>-zoom`.", engine="0x004f5db0."),
+    B("IsCameraZoomed", "Queries whether the zoomed camera is on.", ret="True or False.", engine="0x004f5df0."),
+    B("SetCameraZoomProfile", "Sets the camera profile used when zoomed.", "name", [("name", "str or None", "")], remarks="manifestation.py sets the weapon's profile on weapon-ready.", engine="0x004f5920."),
+    B("ShakeCamera", "Shakes the camera.", "amount", [("amount", "float", "The strength, also the time in seconds.")],
+      remarks="Normal only, and only with `User.Camera.CameraShake` on.", engine="0x004f5d60."),
+    B("SetCameraHeightAdjust", "Sets the camera height adjust flag.", "flag", [("flag", "bool", "")], remarks="Nothing in the engine reads it.", engine="0x004f56f0."),
+    B("GetCameraHeightAdjust", "Gets the camera height adjust flag.", ret="True or False.", engine="0x004f5710."),
+    B("GetCameraPosition", "Gets the camera's position.", ret="(x, y, z).", engine="0x004f7390."),
+    B("GetLookVector", "Gets the camera's forward direction.", ret="(x, y, z).", engine="0x004f6b90."),
+    B("RunCameraScript", "Runs a camera script (World.AddCameraScript).", "id", [("id", "int", "")],
+      remarks="Only in CameraCut mode; an unknown id is logged (\"Script id not found!\"). When the script ends the camera returns to its starting pose and OnCameraScriptFinished() is called on the input state router.",
+      engine="0x004f56a0."),
+    B("CancelCameraScript", "Ends the running camera script, putting the camera back at once.", engine="0x004f56d0."),
+    # picks
+    B("FindDirectTarget", "Finds the targetable entity under the reticle.", ret="The entity id (long), or None.",
+      remarks="A 100 m ray from the camera through the reticle, shortened by the terrain; the nearest pickable body it hits (not the player's own, within 100 m of the player and farther from the camera than the player) - its id when that body is targetable.",
+      engine="0x004f6c30 -> FUN_004f5ae0."),
+    B("GetSplatLocation", "Gets where the reticle's ray hits.", "[length]", [("length", "float", "The ray's length; 0 = 100.")], "(x, y, z): the terrain or body hit, else the ray's end.", engine="FUN_004f72c0."),
+    B("PickMoveLocation", "Picks a point to move to under the reticle (mouse look) or the cursor.", "[length]", [("length", "float", "0 = 100.")],
+      "((x, y, z), kind, entityId or None) - kind 0 nothing, 1 terrain, 2 body.", engine="FUN_004f7630."),
+    B("GetUsableEntities", "Gets the usable entities near the character.", ret="A list of entity ids, nearest first.",
+      remarks="Targetable bodies within 6 m, or within 12 m in a 90-degree cone along the camera's forward axis, from the character's position 1.5 m up.", engine="0x004f7160 -> FUN_004f6a30."),
+    B("CheckLockTarget", "Queries whether an entity can stay the locked target.", "entityId", [("entityId", "long", "")], "True when it is targetable and within 100 m.", engine="FUN_004f5e50."),
+    B("InFrontOf", "Queries whether an entity is on the far side of the character from the camera.", "entityId", [("entityId", "long", "")], "True or False.", engine="FUN_004f5f40."),
+    B("SetTargetClose", "Sets the target-close flag.", "flag", [("flag", "bool", "")], remarks="Nothing in the engine reads it.", engine="0x004f7260."),
+    # targeting
+    B("StartConeTarget", "Starts cone targeting.", "range, angle, type", [("range", "float", ""), ("angle", "float", "The full angle."), ("type", "TargetType", TT + ".")],
+      errors=[("TypeError", "type is not a TargetType.")], engine="0x004f6090."),
+    B("GetConeTargets", "Gets the targetable entities in the cone.", ret="A list of entity ids, nearest first.", engine="FUN_004f60d0."),
+    B("StopConeTarget", "Ends cone targeting.", engine="0x004f6170."),
+    B("StartAreaTarget", "Starts area targeting with the area decal.", "range, radius, type, self",
+      [("range", "float", ""), ("radius", "float", ""), ("type", "TargetType", TT + "."), ("self", "bool", "Centred on the character (else on the target).")],
+      errors=[("TypeError", "type is not a TargetType.")], engine="FUN_004f6190."),
+    B("GetAreaTargets", "Gets the targetable entities within the area around an entity.", "entityId", [("entityId", "long", "")], "A list of entity ids, nearest first.", engine="FUN_004f6340."),
+    B("GetSpecifiedAreaTargets", "Gets the targetable entities within a radius of an entity.", "entityId, radius", [("entityId", "long", ""), ("radius", "float", "")], "A list of entity ids.", engine="FUN_004f6ff0."),
+    B("StopAreaTarget", "Ends area targeting.", engine="FUN_004f6390."),
+    B("StartGroundTarget", "Starts ground targeting with the ground decal.", "range, radius, type", [("range", "float", ""), ("radius", "float", ""), ("type", "TargetType", TT + ".")],
+      errors=[("TypeError", "type is not a TargetType.")], engine="FUN_004f63e0."),
+    B("GetGroundTargets", "Gets the entities at the ground point under the reticle.", ret="A list of entity ids; empty when the point is out of range.",
+      remarks="The decal moves to the point.", engine="FUN_004f6570."),
+    B("StopGroundTarget", "Ends ground targeting.", engine="FUN_004f6680."),
+    B("SetTargetingAlpha", "Sets the targeting decals' alpha.", "alpha", [("alpha", "float", "")], engine="0x004f72a0."),
+]
+
+USERCONTROLLER = dict(name="extern_gameclient_usercontroller", desc="The user controller: the player's camera, movement input, picking and targeting.",
+    functions=[CW],
+    enums=[dict(name="UserMode", desc="The user controller's mode.", values=[("Normal", 0, "The third-person camera following the character."), ("Detached", 1, "A free camera."), ("CameraCut", 2, "A scripted camera (World.AddCameraScript).")]),
+           dict(name="TargetMode", desc="Targeting modes.", values=[("Direct", 0, ""), ("AreaSelf", 1, ""), ("AreaTgt", 2, ""), ("Cone", 3, ""), ("Ground", 4, "")],
+                remarks="No method takes or returns it."),
+           dict(name="TargetType", desc="Which entities a targeting decal is for; it sets the decal's colour.",
+                values=[("Self", 0, "Light blue."), ("Party", 1, "Light blue."), ("Friendly", 2, "Light blue."), ("Hostile", 3, "Red."), ("All", 4, "Magenta.")])],
+    classes=[dict(name="UserController", desc="The player's controller, made by [[extern_gameclient_gameclient.gameclient.createusercontroller|GameClient.CreateUserController]]. " + NOINIT,
+                  remarks="Enumeration arguments must be the enum's instances: these are Boost.Python enums (int subclasses with a `name`).",
+                  methods=sorted(UC, key=lambda m: m["name"].lower()))])
+MODULES = [USERCONTROLLER]

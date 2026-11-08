@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>extern_gameclient_entitybody.EntityBody.PlayAnimation - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="extern_gameclient_entitybody.html">extern_gameclient_entitybody</a> » <a href="extern_gameclient_entitybody.entitybody.html">EntityBody</a> » PlayAnimation</div>
+<h1>extern_gameclient_entitybody.EntityBody.PlayAnimation Method</h1><h2 id="definition">Definition</h2><p>Plays an animation.</p><span class="sig">PlayAnimation(name[, blend[, weight[, loop[, start[, markers]]]]])</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">name</span><span class="ptype">str</span><p>The animation (<code>.anm</code>, with or without the extension).</p></div><div class="param"><span class="sig">blend</span><span class="ptype">float</span><p>Seconds to blend in (0).</p></div><div class="param"><span class="sig">weight</span><span class="ptype">float</span><p>The target weight (1).</p></div><div class="param"><span class="sig">loop</span><span class="ptype">bool</span><p>Loops (True).</p></div><div class="param"><span class="sig">start</span><span class="ptype">float</span><p>Start time in seconds (0).</p></div><div class="param"><span class="sig">markers</span><span class="ptype">str</span><p>The <code>.mkr</code> whose markers to fire (optional).</p></div><h2 id="returns">Returns</h2><p>True.</p><h2 id="remarks">Remarks</h2><p>Animations play together until unloaded; per bone the tracks are blended by priority (the track&#x27;s flags), lowest first, each group taking min(its weight, what is left). Playing one again restarts it.</p><div class="pn"><span>« <a href="extern_gameclient_entitybody.entitybody.playaccessoryanimation.html">PlayAccessoryAnimation</a></span><span><a href="extern_gameclient_entitybody.entitybody.playanimationaligned.html">PlayAnimationAligned</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

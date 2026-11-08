@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>extern_gameclient_entitybody.EntityBodyBase.AttachToEntity - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="extern_gameclient_entitybody.html">extern_gameclient_entitybody</a> » <a href="extern_gameclient_entitybody.entitybodybase.html">EntityBodyBase</a> » AttachToEntity</div>
+<h1>extern_gameclient_entitybody.EntityBodyBase.AttachToEntity Method</h1><h2 id="definition">Definition</h2><p>Attaches this body to a socket of another (decorations).</p><span class="sig">AttachToEntity(plugId, parent, socketId)</span><h2 id="parameters">Parameters</h2><div class="param"><span class="sig">plugId</span><span class="ptype">int</span><p>This body&#x27;s plug contact id.</p></div><div class="param"><span class="sig">parent</span><span class="ptype">EntityBody</span></div><div class="param"><span class="sig">socketId</span><span class="ptype">int</span><p>The parent&#x27;s socket contact id.</p></div><h2 id="returns">Returns</h2><p>None.</p><h2 id="exceptions">Exceptions</h2><div class="tbl"><table><thead><tr><th>Exception</th><th>Condition</th></tr></thead><tbody><tr><td>RuntimeError</td><td>&quot;failed to attached entities!&quot; - this body already hangs on one, the socket is taken, a contact point is missing, or the plug / socket is not a decoration point (the reason is logged).</td></tr></tbody></table></div><div class="note"><p><strong>OpenRasa</strong></p><p>The attachment is recorded but the child is not drawn at the socket.</p></div><h2 id="engine">Engine</h2><p class="muted">tabula_rasa.exe: FUN_00908970.</p><div class="pn"><span>« <a href="extern_gameclient_entitybody.entitybodybase.getcompatibleplug.html">GetCompatiblePlug</a></span><span><a href="extern_gameclient_entitybody.entitybodybase.detachfromentity.html">DetachFromEntity</a> »</span></div>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

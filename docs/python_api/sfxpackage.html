@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<title>SfxPackage - Tabula Rasa Python API</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+<div class="wrap">
+<nav class="side"><div class="top"><a href="index.html">Tabula Rasa Python API</a><input id="q" type="search" placeholder="Search docs" aria-label="Filter the API tree"></div><div id="tree"></div></nav>
+<main><div class="doc"><div class="crumbs"><a href="index.html">Docs</a> » <a href="sfxpackage.html">SfxPackage</a></div>
+<h1>SfxPackage Object</h1><h2>Definition</h2><p>A special-FX package playing on a body, returned by <a href="extern_gameclient_entitybody.entitybody.attachfxpackage.html">EntityBody.AttachFXPackage</a> and its variants.</p><h2>Methods</h2><div class="tbl"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody><tr><td><a href="sfxpackage.start.html">Start([fire])</a></td><td>Starts the package: fires marker 0.</td></tr><tr><td><a href="sfxpackage.stop.html">Stop([ms])</a></td><td>Stops the package&#x27;s effects.</td></tr><tr><td><a href="sfxpackage.ontick.html">OnTick()</a></td><td>Fires marker 15 (TICK).</td></tr><tr><td><a href="sfxpackage.changetargets.html">ChangeTargets(hits, misses)</a></td><td>Replaces the package&#x27;s targets.</td></tr><tr><td><a href="sfxpackage.disconnect.html">Disconnect()</a></td><td>Stops the package receiving the body&#x27;s animation markers.</td></tr><tr><td><a href="sfxpackage.ispersistent.html">IsPersistent()</a></td><td>Queries whether the package is persistent.</td></tr></tbody></table></div><h2>Remarks</h2><p>The handle owns the package: when the last reference goes, the package stops (and, if its file was still loading, never plays).</p>
+</div></main></div>
+<script src="nav.js"></script>
+</html>

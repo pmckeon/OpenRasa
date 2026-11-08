@@ -1,0 +1,23 @@
+{
+  "dependencies": [
+    {
+      "name": "freetype",
+      "default-features": false
+    },
+    {
+      "name": "sdl3",
+      "features": [
+        "vulkan"
+      ]
+    },
+    "zlib",
+    "stb",
+    {
+      "name": "sdl3-mixer",
+      "features": [
+        "libvorbis",
+        "mpg123"
+      ]
+    }
+  ]
+}
