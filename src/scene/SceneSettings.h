@@ -142,6 +142,9 @@ struct PreviewBody {
 struct SceneSettings {
     std::vector<std::string> bodies;
     std::array<float, 3> camera{0, 0, 0};
+    // The camera node's rotation (x, y, z, w; D3DX convention): the loader FUN_008b9170 sets it from cameraYaw / cameraPitch / cameraRoll
+    // when all three are given - D3DXQuaternionRotationYawPitchRoll (0x0043d3c0) -, so positive pitch looks down. Identity: looking +z.
+    std::array<float, 4> orientation{0, 0, 0, 1};
     std::array<float, 4> clear{0, 0, 0, 1};
     float fieldOfView = 1.047f, nearPlane = 0.1f, farPlane = 10000.0f;
     bool lights = false;                     // SetupSceneView given

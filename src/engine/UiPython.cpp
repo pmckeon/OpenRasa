@@ -6,6 +6,7 @@
 // '"<name>" not found for widget "<uiid>"'. repr "<PyUIObject type=<kind> @0x...>". A destroyed widget's object keeps no methods.
 // Methods the exe has that are not implemented here yet are callable, logged once and return None (unimplementedCallReport), so
 // the scripts run on while the engine is filled in.
+#include <cmath>
 #include "UiManager.h"
 #include "PyProfile.h"
 #include "World.h"
@@ -1144,10 +1145,27 @@ PyObject* sClearPreviewEntity(PyObject* o, PyObject* args) {
 // GetCameraDir() (0x008BA250): the view's camera orientation (camera + 0x84, a quaternion) as a D3DX matrix decomposed by FUN_004433e0:
 // (atan2(m31, m33), atan2(-m32, sqrt(m31^2 + m33^2)), atan2(m12, m22)) - the forward axis's yaw and pitch (positive looking down) and the
 // right axis's roll; when sqrt(m31^2 + m33^2) is below a small epsilon (0x00bc3c28): (atan2(-m13, m11), atan2(-m32, m22), 0). The world
-// display (GameUIManager.GetDisplayWorld) answers with the world's camera, a scene widget with its own (no orientation: (0, 0, 0)).
+// display (GameUIManager.GetDisplayWorld) answers with the world's camera, a scene widget with its own (the loader's cameraYaw /
+// Pitch / Roll, else identity: (0, 0, 0)). The epsilon is 1e-5 (0x00bc3c28).
 PyObject* sGetCameraDir(PyObject* o, PyObject*) {
     WIDGET(o) float yaw = 0, pitch = 0, roll = 0;
-    if (w->uiid == "WorldDisplay" && w->parent == manager().root()) world::cameraDir(yaw, pitch, roll);
+    if (w->uiid == "WorldDisplay" && w->parent == manager().root()) {
+        world::cameraDir(yaw, pitch, roll);
+    } else {
+        const float x = w->scene.orientation[0], y = w->scene.orientation[1], z = w->scene.orientation[2], q = w->scene.orientation[3];
+        const float m11 = 1 - 2 * (y * y + z * z), m12 = 2 * (x * y + z * q), m13 = 2 * (x * z - y * q);
+        const float m22 = 1 - 2 * (x * x + z * z);
+        const float m31 = 2 * (x * z + y * q), m32 = 2 * (y * z - x * q), m33 = 1 - 2 * (x * x + y * y);
+        const float h = std::sqrt(m31 * m31 + m33 * m33);
+        if (h >= 1e-5f) {
+            yaw = std::atan2(m31, m33);
+            pitch = std::atan2(-m32, h);
+            roll = std::atan2(m12, m22);
+        } else {
+            yaw = std::atan2(-m13, m11);
+            pitch = std::atan2(-m32, m22);
+        }
+    }
     return Py_BuildValue(const_cast<char*>("(fff)"), yaw, pitch, roll);
 }
 // EnableStaticRender(flag) (0x008BA560, "i:EnableStaticRender"): on a buffered view (tag 'VBFG'), FUN_0068a380 puts it on / takes it

@@ -1,4 +1,5 @@
 // UiManager.cpp - see UiManager.h.
+#include <cmath>
 #include <cctype>
 #include "UiManager.h"
 #include "Cursor.h"
@@ -189,6 +190,14 @@ std::unique_ptr<Widget> Manager::build(const tr::XmlNode& n, Widget* parent) {
         w->scene.nearPlane = real("nearPlane", w->scene.nearPlane);
         w->scene.farPlane = real("farPlane", w->scene.farPlane);
         w->scene.camera = {real("cameraPositionX", 0), real("cameraPositionY", 0), real("cameraPositionZ", 0)};
+        // cameraYaw / cameraPitch / cameraRoll (read only when all three are present - each read stops the chain on failure) ->
+        // D3DXQuaternionRotationYawPitchRoll(yaw, pitch, roll) (0x0043d3c0) -> the camera node's rotation (matTransform::SetQuaternion).
+        // The element form cameraOrientation (FUN_008cb1b0) is not read here (the export has none).
+        if (n.hasAttribute("cameraYaw") && n.hasAttribute("cameraPitch") && n.hasAttribute("cameraRoll")) {
+            const float y = real("cameraYaw", 0) * 0.5f, p = real("cameraPitch", 0) * 0.5f, r = real("cameraRoll", 0) * 0.5f;
+            const float cy = std::cos(y), sy = std::sin(y), cp = std::cos(p), sp = std::sin(p), cr = std::cos(r), sr = std::sin(r);
+            w->scene.orientation = {cy * sp * cr + sy * cp * sr, sy * cp * cr - cy * sp * sr, cy * cp * sr - sy * sp * cr, cy * cp * cr + sy * sp * sr};
+        }
         w->scene.clear = {real("clearColorR", 0) / 255, real("clearColorG", 0) / 255, real("clearColorB", 0) / 255, real("clearColorA", 255) / 255};
     }
     w->consumeAllKeys = boolAttr(n, "consumeAllKeyboardEvents", false);

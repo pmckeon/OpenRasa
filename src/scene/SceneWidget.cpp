@@ -236,6 +236,15 @@ SDL_GPUTexture* SceneWidget::render(SDL_GPUCommandBuffer* commands, SceneSetting
     ViewCamera& camera = view_->camera();
     const float aspect = float(width) / float(height);
     const float half = settings.fieldOfView * 0.5f;
+    // The camera node's rotation (the loader's cameraYaw / Pitch / Roll; identity looks +z): the view's axes are the rows of its D3DX
+    // rotation matrix (right, up, forward).
+    {
+        const float x = settings.orientation[0], y = settings.orientation[1], z = settings.orientation[2], w = settings.orientation[3];
+        camera.explicitAxes = true;
+        camera.axisRight = tr::Vec3{1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w)};
+        camera.axisUp = tr::Vec3{2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w)};
+        camera.axisForward = tr::Vec3{2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y)};
+    }
     camera.yaw = 0;
     camera.pitch = 0;
     camera.position = tr::Vec3{settings.camera[0], settings.camera[1], settings.camera[2]};
