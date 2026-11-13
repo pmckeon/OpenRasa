@@ -193,6 +193,24 @@ void setEntityBodyCollisionHooks(void (*added)(uint64_t id), void (*removed)(uin
 std::vector<uint64_t> takeStaticBodyChanges();
 // A static body as it is now; false when there is none (destroyed) or it is not static.
 bool staticBodyInfo(uint64_t id, StaticBodyInfo& out);
+// A map entity's body that is not static (Client.Graphics.PreloadMapGeometry on) and carries nothing a map placement cannot show (no
+// packages, animations, accessories or attached particle systems): the scene draws it as the map placement, from the body's own
+// transform. The exe draws both kinds the same way once made; only the creation differs (no cell streaming). mapBodyKey changes whenever
+// something the placement uses changes; false for any other body.
+bool mapBodyKey(uint64_t id, uint64_t& key);
+// One frame's bodies in the scene (entityBodiesInScene's), split: the script bodies (sorted ids); the map bodies placed with a key that
+// changed since they were last placed (mapChanged), those no longer plain (mapDropped: the placement goes, a script body draws them), and
+// how many placed map bodies were seen. epoch: a new one when the map's entity indices change; indexOf gives a body's entity index.
+struct SceneBodyLists {
+    std::vector<uint64_t> script, mapChanged, mapDropped;
+    size_t mapCount = 0;
+};
+void sceneBodyLists(SceneBodyLists& out, uint64_t epoch, uint64_t frame, long (*indexOf)(uint64_t));
+// Whether a placed map body was seen in that frame; when not, it is no longer placed (the caller empties its placement).
+bool mapBodySeen(uint64_t id, uint64_t frame);
+// The record the placement is built from: the StaticBody* values (kept in the record for either kind) with the body's own position,
+// rotation and scale; SetHue's colour when one was set; the record's culling layer when StaticBodySetCullLayer gave one, else the body's.
+bool mapBodyRecord(uint64_t id, StaticBodyRecord& record, int32_t& worldFlags);
 
 // Client.Graphics.PreloadMapGeometry off -> static map bodies allowed (EntityBody.cpp).
 void setStaticModeAllowed(bool allowed);

@@ -44,6 +44,10 @@ struct EntityBodyObject;
 struct BodyState {
     EntityBodyObject* owner = nullptr;     // the body this state belongs to (for the per-frame indices below)
     uint64_t version = 1;
+    // Drawn as its map placement (sceneBodyLists): the map entity index cached for scene epoch mapEpoch (-1 none), the key it was last
+    // placed with (0 = not placed), the last frame it was seen in the scene.
+    long mapIndex = -1;
+    uint64_t mapEpoch = 0, mapKey = 0, mapSeen = 0;
     // The arrival hold after a map load (entityBodyArrivalHoldBegin): a new serial while held (0 none), its deadline (SDL ticks, 0 none).
     uint64_t holdSerial = 0, holdUntil = 0;
     std::string mesh, lodMesh;
@@ -2423,7 +2427,8 @@ BodyState* staticTarget(PyObject* idObject, unsigned long long& id) {
     }
     return it->second->state;
 }
-void recordChanged(unsigned long long id, const BodyState& s) {
+void recordChanged(unsigned long long id, BodyState& s) {
+    ++s.version;   // a body that is not static is drawn from the record too (mapBodyRecord)
     if (s.isStatic) staticChanges.push_back(id);
 }
 
@@ -2441,9 +2446,13 @@ PyObject* staticBodySetTransform(PyObject*, PyObject* args) {
     unsigned long long id = 0;
     BodyState* s = staticTarget(idObject, id);
     if (!s) return nullptr;
+    // The body node takes the orientation as given (SetQuaternion's form): a body that is not static (Client.Graphics.PreloadMapGeometry
+    // on) is drawn from it - only its yaw was kept before, so tilted and turned map entities drew unrotated.
     s->position = {p[0], p[1], p[2]};
-    s->yaw = 2.0f * std::atan2(q[1], q[3]);
+    s->rotation = {q[0], q[1], q[2], q[3]};
+    s->yaw = yawOfRotation(s->rotation);
     s->scale = scale;
+    ++s->version;
     s->record.location = {p[0], p[1], p[2]};
     s->record.orientation = {q[0], q[1], q[2], q[3]};
     s->record.scale = scale;
@@ -2670,6 +2679,79 @@ bool staticBodyInfo(uint64_t id, StaticBodyInfo& out) {
     out.inWorld = s.inWorld;
     out.worldFlags = s.worldFlags;
     out.record = s.record;
+    return true;
+}
+
+// The placement key of a plain body (mapBodyKey's rules on the state); 0 for a body only a script body can show.
+uint64_t mapBodyKeyOf(const BodyState& s) {
+    if (s.isStatic || !s.packages.empty() || !s.layers.empty() || !s.animation.empty() || !s.accessories.empty() || !s.particles.empty())
+        return 0;
+    // The version moves with every change the placement uses (SetPosition / SetQuaternion / SetScale / SetYaw, SetHue,
+    // SetCullingLayerType, the StaticBody* calls); AddToWorld's flags do not move it.
+    return ((s.version * 0x9E3779B97F4A7C15ull) ^ (uint64_t(uint32_t(s.worldFlags)) << 1)) | 1;
+}
+
+bool mapBodyKey(uint64_t id, uint64_t& key) {
+    const auto it = registry().find(id);
+    if (id == 0 || it == registry().end()) return false;
+    key = mapBodyKeyOf(*it->second->state);
+    return key != 0;
+}
+
+void sceneBodyLists(SceneBodyLists& out, uint64_t epoch, uint64_t frame, long (*indexOf)(uint64_t)) {
+    out.script.clear();
+    out.mapChanged.clear();
+    out.mapDropped.clear();
+    out.mapCount = 0;
+    for (EntityBodyObject* b : bodyIndex().dynamic) {
+        if (!registered(b)) continue;
+        BodyState& s = *b->state;
+        if (s.isStatic || !s.inWorld || !s.sceneRegistered || s.mesh.empty()) continue;
+        if (s.mapEpoch != epoch) {
+            s.mapEpoch = epoch;
+            s.mapIndex = indexOf ? indexOf(b->entityId) : -1;
+            s.mapKey = 0;
+        }
+        const uint64_t key = s.mapIndex >= 0 ? mapBodyKeyOf(s) : 0;
+        if (key != 0) {
+            s.mapSeen = frame;
+            ++out.mapCount;
+            if (key != s.mapKey) {
+                s.mapKey = key;
+                out.mapChanged.push_back(b->entityId);
+            }
+            continue;
+        }
+        if (s.mapKey != 0) {
+            s.mapKey = 0;
+            out.mapDropped.push_back(b->entityId);
+        }
+        out.script.push_back(b->entityId);
+    }
+    std::sort(out.script.begin(), out.script.end());
+}
+
+bool mapBodySeen(uint64_t id, uint64_t frame) {
+    const auto it = registry().find(id);
+    if (id == 0 || it == registry().end()) return false;
+    BodyState& s = *it->second->state;
+    if (s.mapSeen == frame && s.mapKey != 0) return true;
+    s.mapKey = 0;
+    return false;
+}
+
+bool mapBodyRecord(uint64_t id, StaticBodyRecord& record, int32_t& worldFlags) {
+    const auto it = registry().find(id);
+    if (id == 0 || it == registry().end() || it->second->state->isStatic) return false;
+    const BodyState& s = *it->second->state;
+    record = s.record;
+    record.location = s.position;
+    record.orientation = s.rotation;
+    record.scale = s.scale;
+    if (s.hasPrimaryHue)
+        for (size_t i = 0; i < 4; ++i) record.hue1[i] = uint8_t(std::lround(std::clamp(s.primaryHue[i], 0.0f, 1.0f) * 255.0f));
+    if (record.cullLayer == 0) record.cullLayer = s.cullingLayer;
+    worldFlags = s.worldFlags;
     return true;
 }
 

@@ -999,10 +999,11 @@ void Renderer::beginFrame(const Mat4& viewProjection, const tr::Vec3& cameraPosi
         const tr::Vec3 level{lighting.cameraForward.x, 0, lighting.cameraForward.z};
         const float levelLength = std::sqrt(level.x * level.x + level.z * level.z);
         const tr::Vec3 ahead = levelLength > 1e-4f ? add(cameraPosition, scaled(level, shadowAhead / levelLength)) : cameraPosition;
-        const float cx = dot(ahead, right), cy = dot(ahead, up);
-        const float cz = dot(cameraPosition, forward);
-        const tr::Vec3 centre = add(add(scaled(right, cx), scaled(up, cy)), scaled(forward, cz));
-        const Mat4 view = viewLH(subtract(centre, scaled(forward, shadowDepth * 0.5f)), right, up, forward);
+        // The shadow camera stands 300 m toward the sun from the point ahead (ComputeGlobalShadowMapParams 0x00808d30: the position less
+        // the light's direction x 300.0 - double 0x00c2bb60 -, depth 400 - float 0x00c2bb78): casters up to 300 m up-sun and 100 m beyond
+        // the point. Centred on the camera (+-200 m) it clipped tall casters 200 - 300 m up-sun - the Twin Pillars outpost beacons
+        // (arch_hum_outpost_beacon, 164 m bounding radius) lost their shadows, and the cut moved with the camera.
+        const Mat4 view = viewLH(subtract(ahead, scaled(forward, shadowUpSun)), right, up, forward);
         Mat4 ortho = identityMatrix();
         ortho.row0 = {1.0f / shadowExtent, 0, 0, 0};
         ortho.row1 = {0, 1.0f / shadowExtent, 0, 0};

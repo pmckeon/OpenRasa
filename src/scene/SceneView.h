@@ -261,7 +261,7 @@ public:
     };
     void setScriptBodies(const std::vector<ScriptBody>& bodies);
     // A script body's place, without a new version (a moving body: the controller moves it every frame).
-    void setScriptBodyPlace(uint64_t id, const tr::Vec3& position, const tr::Quat& rotation, float scale);
+    void setScriptBodyPlaces(const std::vector<ScriptBody>& bodies);
     // The user controller's targeting decals (UserController::InitTargetBodies FUN_004f6730): ui_target_areaofeffect.geo (the area
     // ring) and ui_ground_targeting_object.geo (the ground marker), each a body in the scene while shown, at a point, uniformly scaled,
     // with its first piece's MatDiffuse set by effEffectImpl::SetColor (rgb x gModulateScale 0.5, alpha as given) - the TargetType's
@@ -1179,6 +1179,8 @@ private:
         struct LiveTransporter {            // a fired TRN2 (SfxTransporter2VFXProduct): its curves from startTime
             tr::SfxTransporter event;
             float startTime = 0;
+            uint64_t entity = 0;            // the body its target mode put it on (0: the package's own body)
+            uint64_t serial = 0;            // transporterOwner_'s key value: drawn only while it is its body's newest
         };
         std::vector<LiveTransporter> transporters;
         struct LiveHue {                    // a fired HUEB (SfxHueBodyProduct): its colour until durationMs (0: until the package stops)
@@ -1221,8 +1223,15 @@ private:
     static Vec4f bodyHueOverride(const PackagePlayer& player, float time);
     // The player's running TRN2 overlays on connection point `connectionPoint` (0 = the body) at `time`, for a body at `anchor` whose
     // model bounds are `bounds` (projections 0..2 scale by its extent).
-    std::vector<Renderer::TransporterOverlay> transporterOverlays(const PackagePlayer& player, float time, uint32_t connectionPoint,
+    std::vector<Renderer::TransporterOverlay> transporterOverlays(const PackagePlayer& player, float time, uint32_t connectionPoint, uint64_t entity,
                                                                   const tr::Vec3& anchor, const tr::Bounds& bounds);
+    // One shell (TRNS / TRN2 product) per body and connection point, the newest: SfxTransporterVFXProduct's and
+    // SfxTransporter2VFXProduct's constructors (retail 0x007737e0 / 0x00776a60) call FUN_0077be10, which looks the product's SceneBody up in
+    // a global map (DAT_00d49be4), Stop()s the product registered there and registers the new one. Key (entity, connection point), value
+    // the newest LiveTransporter::serial; an older one never draws again, even after the newest has ended (tabula_rasa.19.trace: the ion
+    // target's red shell stops the frame the micromech landing shell starts, and does not come back).
+    std::map<std::pair<uint64_t, uint32_t>, uint64_t> transporterOwner_;
+    uint64_t nextTransporterSerial_ = 1;
     const std::vector<Renderer::TransporterOverlay>* pieceOverlays_ = nullptr;   // drawn over each solid piece while set
     Vec4f emissiveAdd_{0, 0, 0, 0};   // added to TR pieces' MatEmissive while a script body's own pieces draw (AdjustEmissive)
     bool ghostDraw_ = false;          // drawing a motion blur ghost (advanceMotionBlur): fading pieces without a traced fade are skipped
@@ -1806,6 +1815,7 @@ private:
         const Mat4* ownWorld = nullptr; // the placement's world (target mode 0 with self 0)
         std::vector<BodyTracer>* tracers = nullptr;   // a server / script placement's ACTR trails (nullptr: a map placement)
         const Relevance* relevance = nullptr;         // the own body's relevance (SceneBody + 0xe4; nullptr: taken as 100)
+        uint64_t bodyId = 0;            // the placement's own entity id (a script body's; 0 otherwise): the shell owner key for target mode 0
     };
     EffectLists effectLists(Placement& p);
     EffectLists effectLists(ServerPlacement& s);

@@ -2413,7 +2413,15 @@ void SceneView::queueGameTerrain(const std::function<bool(const tr::Vec3&, float
     terrainFullDetail_ = 0;
     terrainChunksDue_ = 0;
     for (const GameTerrainBlock& b : gameTerrainBlocks_) {
-        if (!visible(b.centre, b.radius)) continue;
+        // Out of view: a sun shadow caster only (the sun map's casters are gathered with the shadow view, as queueTerrain's chunks) -
+        // a cliff just off screen still shades the ground in view; before, its shadow came and went with the camera's pitch.
+        const bool inView = visible(b.centre, b.radius);
+        if (!inView && !renderer_->sunMapCovers(b.centre, b.radius)) continue;
+        struct ShadowOnlyScope {
+            Renderer& renderer;
+            ~ShadowOnlyScope() { renderer.setShadowOnly(false); }
+        } shadowOnlyScope{*renderer_};
+        renderer_->setShadowOnly(!inView);
         if (showTextures && terrainMaterial_.layers) renderer_->drawTerrain(b.mesh, terrainMaterial_);
         else renderer_->draw(b.mesh, identityMatrix(), Vec4f{1, 1, 1, 1}, true);
     }
@@ -6046,11 +6054,16 @@ float SceneView::scriptOpacity(const ServerPlacement& s, uint32_t selector) cons
 std::vector<Renderer::TransporterOverlay> SceneView::scriptOverlays(const ServerPlacement& s, uint32_t connectionPoint, const tr::Vec3& anchor,
                                                                     const tr::Bounds& bounds) {
     std::vector<Renderer::TransporterOverlay> out;
-    for (const auto& k : s.scriptPackages)
-        if (!k->player.transporters.empty()) {
-            std::vector<Renderer::TransporterOverlay> more = transporterOverlays(k->player, lightTime, connectionPoint, anchor, bounds);
-            out.insert(out.end(), more.begin(), more.end());
-        }
+    // Shells on this body: from its own packages and from other bodies' packages whose target mode chose it (the micromech landing
+    // shell of the caster's resolve package goes on each target).
+    for (const ServerPlacement& other : serverPlacements_) {
+        if (!other.scriptBody) continue;
+        for (const auto& k : other.scriptPackages)
+            if (!k->player.transporters.empty()) {
+                std::vector<Renderer::TransporterOverlay> more = transporterOverlays(k->player, lightTime, connectionPoint, s.scriptId, anchor, bounds);
+                out.insert(out.end(), more.begin(), more.end());
+            }
+    }
     return out;
 }
 
@@ -6879,7 +6892,7 @@ void SceneView::queueDraws(const Selection& selection) {
                 // Its package's TRN2 overlays on the body (connection point 0).
                 std::vector<Renderer::TransporterOverlay> overlays;
                 if (showEffects && p.model && p.model->loaded && !p.player.transporters.empty())
-                    overlays = transporterOverlays(p.player, lightTime, 0, tr::Vec3{p.world.row0.w, p.world.row1.w, p.world.row2.w}, p.model->bounds);
+                    overlays = transporterOverlays(p.player, lightTime, 0, 0, tr::Vec3{p.world.row0.w, p.world.row1.w, p.world.row2.w}, p.model->bounds);
                 pieceOverlays_ = overlays.empty() ? nullptr : &overlays;
                 drawRelevance_ = p.relevance.value;
                 if (p.model && p.model->loaded && p.model->lodLevels > 1 && std::getenv("OPENRASA_LODLOG")) {
@@ -7236,10 +7249,22 @@ void SceneView::queueDraws(const Selection& selection) {
         // In view: the marker / ring, or any loaded model drawn at the placement (its own and the use-state accessories - e.g. the
         // Alia Das waypoint's field column, tens of metres tall, which vanished when only its foot was tested).
         bool inView = visible(s.position, std::max(s.ringRadius, 3.0f));
+        // The volume as FrustumCullObjs takes it (gfxBody slot 21 FUN_005dd5b0: every piece's box through its bone - Model::pieceBounds);
+        // Model::bounds holds the solid pieces' stored vertices only, empty for an effect-only model: the Twin Pillars gate's force field
+        // (arch_hum_outpost_fence_entrance_v01_forcefield.geo, one additive piece on a bone 5.2 m up) was tested as a 3 m sphere at its
+        // foot and vanished at the screen's edges.
+        const float worldScale = std::sqrt(s.world.row0.x * s.world.row0.x + s.world.row1.x * s.world.row1.x + s.world.row2.x * s.world.row2.x);
+        auto volumeOf = [&](const Model* m, tr::Vec3& centre, float& radius) {
+            const tr::Bounds& b = m->hasPieceBounds ? m->pieceBounds : m->bounds;
+            centre = transformPoint(s.world, scaled(add(b.min, b.max), 0.5f));
+            radius = length(subtract(b.max, b.min)) * 0.5f * worldScale;
+        };
         auto modelInView = [&](const Model* m) {
             if (inView || !m || !m->loaded) return;
-            const tr::Vec3 centre = transformPoint(s.world, scaled(add(m->bounds.min, m->bounds.max), 0.5f));
-            inView = visible(centre, length(subtract(m->bounds.max, m->bounds.min)) * 0.5f);
+            tr::Vec3 centre;
+            float radius = 0;
+            volumeOf(m, centre, radius);
+            inView = visible(centre, radius);
         };
         modelInView(s.model);
         for (const Model* accessory : s.accessories) modelInView(accessory);
@@ -7247,9 +7272,10 @@ void SceneView::queueDraws(const Selection& selection) {
         bool shadowOnly = false;
         if (!inView) {
             if (!s.castsShadow || !s.model || !s.model->loaded) continue;
-            const tr::Vec3 centre = transformPoint(s.world, scaled(add(s.model->bounds.min, s.model->bounds.max), 0.5f));
-            const float scale = std::sqrt(s.world.row0.x * s.world.row0.x + s.world.row1.x * s.world.row1.x + s.world.row2.x * s.world.row2.x);
-            if (!renderer_->sunMapCovers(centre, length(subtract(s.model->bounds.max, s.model->bounds.min)) * 0.5f * scale)) continue;
+            tr::Vec3 centre;
+            float radius = 0;
+            volumeOf(s.model, centre, radius);
+            if (!renderer_->sunMapCovers(centre, radius)) continue;
             shadowOnly = true;
         }
         struct ShadowOnlyScope {
@@ -7531,6 +7557,21 @@ void SceneView::queueDraws(const Selection& selection) {
             drawWorld = s.world;
         } else if (!s.scriptBody) {
             renderer_->draw(unitBoxLines_, multiply(s.world, boxMatrix(tr::Bounds{tr::Vec3{-0.5f, 0, -0.5f}, tr::Vec3{0.5f, 2, 0.5f}})), colour, false);
+        } else if (s.model && s.model->loaded && !serverModelCulled(s)) {
+            // A script body with nothing of its own to draw - the proxies BombEffect.Recv_DoExplosion makes (CreateProxyEntity, class
+            // 1400 particle_proxy.geo: no pieces): its package accessories are products with their own SceneBodies
+            // (SfxAccessoryProduct::m_pSceneBody, 2007 build), drawn whatever the parent has - Fire Support's falling bombs
+            // (vfx_ability_fire_support_target.geo) and ion column (vfx_ability_fire_support_ion_p01 / _p03.geo) hang on such proxies.
+            for (size_t k = 0; k < s.accessories.size(); ++k) {
+                const Model* accessory = s.accessories[k];
+                Mat4 world;
+                if (accessory && accessory->loaded && k < s.accessoryMounts.size() &&
+                    accessoryWorld(s.model, s.world, nullptr, &s, s.accessoryMounts[k], world, &s.accessoryMounts)) {
+                    objectClock_ = accessoryClock(s.accessoryMounts[k]);
+                    drawModelPieces(*accessory, world, Vec4f{0, 0, 0, 0}, selected, scriptOpacity(s) * s.scriptFade);
+                    objectClock_ = -1;
+                }
+            }
         }
         if (s.ringRadius > 0) {
             Mat4 ring = identityMatrix();
@@ -7689,7 +7730,7 @@ void SceneView::queueDraws(const Selection& selection) {
     if (showEffects)
         for (const LiveProjectile& p : liveProjectiles_) {
             if (p.waitingMs >= 0.0f) continue;
-            if (p.model && p.model->loaded) {
+            if (p.model && p.model->loaded && !p.arrived) {      // arrived: scaled to 0 (nothing to draw)
                 // Its own animation controller's clock (a first animation holds its end once played; the loop animation loops) - the
                 // material tracks' clock; the bones from the blended layers when the mesh has them.
                 float clock = p.animationMs * 0.001f;
@@ -8416,13 +8457,13 @@ SceneView::EffectLists SceneView::effectLists(Placement& p) {
 SceneView::EffectLists SceneView::effectLists(ServerPlacement& s) {
     s.accessoryMounts.resize(s.accessories.size());
     return EffectLists{&s.player, &s.accessories, &s.stateParticles, &s.stateLights, &s.stateBeams, 0, nullptr, &s.accessoryMounts, 0, &s.world,
-                       &s.bodyTracers, &s.relevance};
+                       &s.bodyTracers, &s.relevance, s.scriptBody ? s.scriptId : 0};
 }
 
 SceneView::EffectLists SceneView::effectLists(ServerPlacement& s, ServerPlacement::ScriptPackage& k) {
     s.accessoryMounts.resize(s.accessories.size());
     return EffectLists{&k.player, &s.accessories, &s.stateParticles, &s.stateLights, &s.stateBeams, k.serial, &k.targets, &s.accessoryMounts,
-                       k.selfEntity, &s.world, &s.bodyTracers, &s.relevance};
+                       k.selfEntity, &s.world, &s.bodyTracers, &s.relevance, s.scriptBody ? s.scriptId : 0};
 }
 
 void SceneView::clearOwned(EffectLists lists, bool persistentOnly, bool disableParticles) {
@@ -8811,8 +8852,22 @@ void SceneView::fireMarker(EffectLists lists, uint32_t marker, bool warm) {
                 if (w) soundHooks_.shake(tr::Vec3{w->row0.w, w->row1.w, w->row2.w}, c.nearDist, c.nearMag, c.farDist, c.farMag);
             }
         }
-    for (const tr::SfxTransporter& t : player.pending.transporters)
-        if (t.marker == marker) player.transporters.push_back(PackagePlayer::LiveTransporter{t, lightTime});
+    // TRNS / TRN2 (retail trigger 0x00765640): a product per body of the event's target mode (`location`); each takes its body's (and
+    // connection point's) shell over from the one before (transporterOwner_).
+    for (const tr::SfxTransporter& t : player.pending.transporters) {
+        if (t.marker != marker) continue;
+        for (uint64_t entity : script ? bodiesFor(t.location) : std::vector<uint64_t>{0}) {
+            // Target mode 0 gives 0 (the placement's own body): a script body's shells are keyed by its entity id, so a shell another
+            // package puts on it (as a target) and its own take each other over.
+            const uint64_t body = entity != 0 ? entity : lists.bodyId;
+            PackagePlayer::LiveTransporter live{t, lightTime, body, nextTransporterSerial_++};
+            transporterOwner_[std::make_pair(body != 0 ? body : (uint64_t(uintptr_t(&player)) | (1ull << 63)), t.connectionPoint)] = live.serial;
+            if (std::getenv("OPENRASA_PKGLOG"))
+                std::fprintf(stderr, "[pkg] shell %llu marker %u entity %llu cp %u duration %u at %.3f\n", (unsigned long long)live.serial,
+                             unsigned(marker), (unsigned long long)body, unsigned(t.connectionPoint), unsigned(t.durationMs), lightTime);
+            player.transporters.push_back(live);
+        }
+    }
     // PROJ (SfxProjectileEvent::Trigger FUN_00760f70, read in the 2007 build 0x009bbfb0): for each target of the event's target mode
     // (m_location; mode 0 pairs the package's body with each target, as a BEAM's), a projectile from the launch connection point on
     // the body (or on its accessory, m_accessoryCp: ComputeGfxBody) to the target's m_targetCp - on a miss the target's position plus a
@@ -9005,7 +9060,7 @@ float SceneView::bodyOpacity(const PackagePlayer& player, float time, uint64_t e
 // FUN_007741a0): while elapsed < durationMs (or for ever when 0), each layer's texture matrix M = Scaling(s) x translation(u, v curve values)
 // x RotationZ(rotation) (FUN_00776ea0 / FUN_00773c50, D3DX row vectors), passed as its first two columns; TRN2's TransporterColor = the
 // colour curves (TRNS has none); Anchor = the body's position. Every curve's clock wraps at its last key.
-std::vector<Renderer::TransporterOverlay> SceneView::transporterOverlays(const PackagePlayer& player, float time, uint32_t connectionPoint,
+std::vector<Renderer::TransporterOverlay> SceneView::transporterOverlays(const PackagePlayer& player, float time, uint32_t connectionPoint, uint64_t entity,
                                                                          const tr::Vec3& anchor, const tr::Bounds& bounds) {
     std::vector<Renderer::TransporterOverlay> out;
     auto value = [](tr::SfxCurve curve, float t) {
@@ -9015,7 +9070,9 @@ std::vector<Renderer::TransporterOverlay> SceneView::transporterOverlays(const P
     const tr::Vec3 extent = subtract(bounds.max, bounds.min);
     for (const PackagePlayer::LiveTransporter& live : player.transporters) {
         const tr::SfxTransporter& e = live.event;
-        if (e.connectionPoint != connectionPoint) continue;
+        if (e.connectionPoint != connectionPoint || live.entity != entity) continue;
+        const auto owner = transporterOwner_.find(std::make_pair(entity != 0 ? entity : (uint64_t(uintptr_t(&player)) | (1ull << 63)), connectionPoint));
+        if (owner == transporterOwner_.end() || owner->second != live.serial) continue;   // a newer shell on this body stopped it
         const float t = std::max(0.0f, time - live.startTime);
         if (e.durationMs != 0 && t * 1000.0f >= float(e.durationMs)) continue;     // the product has ended
         Renderer::TransporterOverlay o;
@@ -9215,7 +9272,8 @@ bool SceneView::projectileAim(const LiveProjectile& p, tr::Vec3& aim) const {
 // the aim is updated and g = remaining^2 x gravity x -1e-6 is added to its height difference; the body moves min(dt, remaining) /
 // remaining of the way (so it reaches a moving target exactly when its time runs out) and faces that way (matMatrix4x4::StoreLookDir,
 // up (0, 1, 0)); a zero direction ("Bad projectile ...") ends its time. With no time left it arrives once: its observers and marker
-// listeners get marker 14 PROJECTILE_ARRIVED, its particle is disabled, its animation paused (not reproduced: it keeps playing). Then
+// listeners get marker 14 PROJECTILE_ARRIVED, its body is scaled to 0 (gfxBodyBase::SetScale(0) through the gfx body's vtable + 0x1c - the
+// mesh vanishes on arrival, the body stays for its zombie time), its particle is disabled, its animation paused. Then
 // the remaining, zombie and loop times each lose min(dt, value); one with neither remaining nor zombie time is destroyed.
 // A projectile's animation / loop package: on the shooter's placement, the projectile body its own, the firing package's targets.
 void SceneView::startProjectilePackage(LiveProjectile& p) {
@@ -9311,6 +9369,9 @@ void SceneView::advanceProjectiles(float dtMs) {
         } else if (!p.arrived) {
             // Arrival (once): marker 14 to the listeners, the particle disabled, the animation controller paused.
             p.arrived = true;
+            // SetScale(0) on its gfx body: everything drawn with its frame collapses to the body's position (the scatterbomb's
+            // vfx_ability_scatterbombs_geo.geo, zombie time 3 s, disappears at once in retail, as here).
+            for (Vec4f* r : {&p.world.row0, &p.world.row1, &p.world.row2}) r->x = r->y = r->z = 0;
             if (p.particle) p.particle->setEnabled(false);
             // AnimationBlender::Pause: every layer held where it is (its clock and its weight).
             for (ServerPlacement::ScriptLayer& l : p.blend.layers) {
@@ -10073,12 +10134,19 @@ bool SceneView::scriptBodyOverhead(uint64_t id, OverheadBody& out) const {
     return false;
 }
 
-void SceneView::setScriptBodyPlace(uint64_t id, const tr::Vec3& position, const tr::Quat& rotation, float scale) {
-    for (ServerPlacement& s : serverPlacements_)
-        if (s.scriptBody && s.scriptId == id) {
-            s.position = position;
-            s.world = placementMatrix(position, rotation, scale);
-        }
+// Every body's place in one pass (a lookup by id): with Client.Graphics.PreloadMapGeometry on, every map entity is a script body, and
+// one search of the placements per body cost ~30 ms a frame for Concordia's 5,750.
+void SceneView::setScriptBodyPlaces(const std::vector<ScriptBody>& bodies) {
+    std::unordered_map<uint64_t, const ScriptBody*> byId;
+    byId.reserve(bodies.size());
+    for (const ScriptBody& b : bodies) byId.emplace(b.id, &b);
+    for (ServerPlacement& s : serverPlacements_) {
+        if (!s.scriptBody) continue;
+        const auto it = byId.find(s.scriptId);
+        if (it == byId.end()) continue;
+        s.position = it->second->position;
+        s.world = placementMatrix(it->second->position, it->second->rotation, it->second->scale);
+    }
 }
 
 void SceneView::advanceScriptBodies(float dt) {
@@ -10263,8 +10331,10 @@ void SceneView::setScriptBodies(const std::vector<ScriptBody>& bodies) {
                 fresh->targets = k.targets;
                 fresh->targetsVersion = k.targetsVersion;
                 fresh->velocityOverride = k.velocityOverride;
-                fresh->starts = k.starts;
-                fresh->ticks = k.ticks;
+                // Start() / OnTick() calls made before the scene took the package fire below (BombEffect.DoExplosion attaches with
+                // AttachFXPackageNoStart and calls OnTick() at once: the explosion's events wait for that Tick).
+                fresh->starts = 0;
+                fresh->ticks = 0;
                 fresh->player.random = uint32_t(k.serial * 2654435761u) | 1u;
                 s.scriptPackages.push_back(fresh);
                 StateEffects fx;
@@ -10273,6 +10343,12 @@ void SceneView::setScriptBodies(const std::vector<ScriptBody>& bodies) {
                 // takes the body's visibility over from here (teleport_default_arrival.pkg: 0 until 1.88 s, 1 by 2.63 s).
                 if (fadesBody(fx) && k.start) s.scriptHoldReleased = s.scriptHoldSerial;
                 startPackage(effectLists(s, *fresh), std::move(fx), false, k.start && !k.stopped);
+                {
+                    const EffectLists fl = effectLists(s, *fresh);
+                    for (; fresh->starts < k.starts; ++fresh->starts) fireMarker(fl, 0);
+                    for (; fresh->ticks < k.ticks; ++fresh->ticks) fireMarker(fl, 15);
+                }
+                if (k.stopped) stopPlayer(effectLists(s, *fresh), k.stopMs);
                 fresh->stopped = k.stopped;
                 fireHeard(*fresh, k);
                 if (!k.alive) fresh->dead = true;

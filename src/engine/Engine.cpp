@@ -3082,8 +3082,8 @@ WorldGraphics worldGraphics() {
     g.refractions = !renderBit(18) && g.rqs.refractions;   // RefractionPhase / water: also the RQS flag + 0x169
     // OpenRasa's extra: the game's unused reflective water technique, driven by the game's own Client.Graphics.Reflections (bit 17
     // clear). Retail never reflects water (the piece's reflect flag is only ever cleared) and its options window has no Reflections
-    // control; every Video Quality level switches it off, so it is on only when client.cfg says True (or lacks the key - bit 17
-    // starts clear; the game writes the key on every save).
+    // control; every Video Quality level switches it off, so it is on only when client.cfg says True (a missing key reads the
+    // options manager's default, False - registerDefaultOptions runs before client.cfg is read).
     g.waterReflections = !renderBit(17);
     g.fakeShadows = !renderBit(23) && g.rqs.fakeShadows;
     // TerrainVisualizerClient::Submit (0x0072a7b0): the terrain effect's TechniqueMode = 1 (Terrain_Deferred_NormalGlowSpec) when the

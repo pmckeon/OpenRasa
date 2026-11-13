@@ -700,6 +700,8 @@ std::vector<int64_t> recordCells(const StaticBodyRecord& r) {
     return out;
 }
 
+void placeRecord(long index, uint64_t id, const StaticBodyRecord& r, int32_t worldFlags);
+
 // The scene's placement of a body: built from its record when created and in the world, emptied otherwise.
 void applyStaticBody(uint64_t id) {
     State& s = state();
@@ -713,7 +715,13 @@ void applyStaticBody(uint64_t id) {
         s.view->setStaticEntity(size_t(index), nullptr);
         return;
     }
-    const StaticBodyRecord& r = it->second.info.record;
+    placeRecord(index, id, it->second.info.record, it->second.info.worldFlags);
+    it->second.applied = true;
+}
+
+// A map entity's placement built from a record (a static body's, or mapBodyRecord's for a body that is not static).
+void placeRecord(long index, uint64_t id, const StaticBodyRecord& r, int32_t worldFlags) {
+    State& s = state();
     tr::MapEntity e = s.map && size_t(index) < s.map->map.entities.size() ? s.map->map.entities[size_t(index)] : tr::MapEntity{};
     e.entityId = id;
     e.location = tr::Vec3{r.location[0], r.location[1], r.location[2]};
@@ -722,12 +730,58 @@ void applyStaticBody(uint64_t id) {
     e.hue1 = tr::HueColour{r.hue1[0], r.hue1[1], r.hue1[2], r.hue1[3]};
     e.hue2 = tr::HueColour{r.hue2[0], r.hue2[1], r.hue2[2], r.hue2[3]};
     e.cullLayer = r.cullLayer;
-    e.flags = it->second.info.worldFlags;
+    e.flags = worldFlags;
     e.hasBounds = r.hasBounds;
     if (r.hasBounds) e.bounds = tr::Bounds{tr::Vec3{r.boundsMin[0], r.boundsMin[1], r.boundsMin[2]}, tr::Vec3{r.boundsMax[0], r.boundsMax[1], r.boundsMax[2]}};
     e.particles.clear();
     s.view->setStaticEntity(size_t(index), &e, &r.particles);
-    it->second.applied = true;
+}
+
+// Map entities' bodies that are not static (Client.Graphics.PreloadMapGeometry on) drawn as their placements (sceneBodyLists). The exe
+// draws a body the same way whether it is static or not; with every map entity a script body instead, each frame copied and matched all
+// of them (5,750 on Concordia: 20 fps against 125 with the option off).
+std::unordered_set<uint64_t> placedMapBodies;
+uint64_t mapBodyEpoch = 1, mapBodyFrame = 0;
+SceneBodyLists sceneLists;
+
+long viewEntityIndex(uint64_t id) {
+    State& s = state();
+    return s.view ? s.view->entityIndexOf(id) : -1;
+}
+void unplaceMapBody(uint64_t id) {
+    State& s = state();
+    if (s.view)
+        if (const long index = s.view->entityIndexOf(id); index >= 0) s.view->setStaticEntity(size_t(index), nullptr);
+}
+void updateMapBodies() {
+    State& s = state();
+    for (uint64_t id : sceneLists.mapChanged) {
+        StaticBodyRecord r;
+        int32_t worldFlags = 0;
+        const long index = s.view ? s.view->entityIndexOf(id) : -1;
+        if (index < 0 || !mapBodyRecord(id, r, worldFlags)) continue;
+        placeRecord(index, id, r, worldFlags);
+        placedMapBodies.insert(id);
+    }
+    for (uint64_t id : sceneLists.mapDropped) {
+        unplaceMapBody(id);
+        placedMapBodies.erase(id);
+    }
+    if (sceneLists.mapCount == placedMapBodies.size()) return;
+    // A placed body was not seen (destroyed, out of the world or the scene): its placement goes.
+    for (auto it = placedMapBodies.begin(); it != placedMapBodies.end();) {
+        if (mapBodySeen(*it, mapBodyFrame)) {
+            ++it;
+            continue;
+        }
+        unplaceMapBody(*it);
+        it = placedMapBodies.erase(it);
+    }
+}
+void sweepMapBodies() {
+    for (uint64_t id : placedMapBodies) unplaceMapBody(id);
+    placedMapBodies.clear();
+    ++mapBodyEpoch;
 }
 
 // The bodies' changes (records filed in their cells; destroyed ones removed).
@@ -919,6 +973,7 @@ PyObject* onClearMap(PyObject*, PyObject*) {
             applyStaticBody(id);
         }
     streaming = StaticStreaming{};
+    sweepMapBodies();   // the map's other bodies leave with it too
     return none();
 }
 
@@ -1913,7 +1968,10 @@ SDL_GPUTexture* render(SDL_GPUCommandBuffer* commands, SDL_GPUDevice* device, in
     // World does (FUN_00543940 / FUN_00543be0): the player, NPCs, creatures, server objects - not only while a user controller exists:
     // Recv_UpdatePhysicalEntity takes the player out of the world and back, which destroys and recreates the controller, and each
     // AddToWorld fades it in again. Static bodies (the map's entities) are the scene's placements.
-    for (uint64_t id : entityBodiesInScene()) {
+    ++mapBodyFrame;
+    sceneBodyLists(sceneLists, mapBodyEpoch, mapBodyFrame, viewEntityIndex);
+    updateMapBodies();   // map entities' bodies drawn as their placements
+    for (uint64_t id : sceneLists.script) {
         scene::PreviewBody body;
         if (entityBodySnapshot(id, body)) bodies.push_back(scene::scriptBodyOf(body));
     }
@@ -1937,7 +1995,7 @@ SDL_GPUTexture* render(SDL_GPUCommandBuffer* commands, SDL_GPUDevice* device, in
     profileStep(3);
     v.relevanceDisabled = renderSettingBit(0xb);   // "Disable Relevance"
     v.animationThrottlingDisabled = renderSettingBit(8);   // "Disable Animation Throttling"
-    for (const ::SceneView::ScriptBody& b : bodies) v.setScriptBodyPlace(b.id, b.position, b.rotation, b.scale);
+    v.setScriptBodyPlaces(bodies);
     // The camera behind the start position, looking the way the player faces (a server yaw r faces (-sin r, 0, -cos r)); the
     // default camera profile's pivot is 1.9 m above the feet (cameraprofiles.xml Offset at full zoom).
     ::ViewCamera& camera = v.camera();

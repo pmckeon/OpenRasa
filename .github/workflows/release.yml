@@ -34,7 +34,7 @@ jobs:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/../vcpkg-cache,readwrite
       BUILD_NOPAUSE: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -43,7 +43,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git curl zip unzip tar pkg-config autoconf autoconf-archive \
+          sudo apt-get install -y -o Acquire::Retries=5 build-essential cmake ninja-build git curl zip unzip tar pkg-config autoconf autoconf-archive \
             automake libtool python3 python3-venv python3-pip nasm bison flex autopoint gettext libltdl-dev perl \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
             libwayland-dev wayland-protocols libegl1-mesa-dev libgl1-mesa-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev \
@@ -52,14 +52,16 @@ jobs:
       - name: vcpkg
         shell: bash
         run: |
-          git clone https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          # GitHub's downloads fail now and then (HTTP 5xx): each network step is tried up to 5 times, 30 s apart.
+          retry() { for attempt in 1 2 3 4 5; do "$@" && return 0; echo "Attempt $attempt failed: $*"; sleep 30; done; return 1; }
+          retry git clone https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
           git -C "$VCPKG_ROOT" checkout --quiet "$VCPKG_COMMIT"
           mkdir -p "${{ github.workspace }}/../vcpkg-cache"
-          if [ "$RUNNER_OS" = "Windows" ]; then "$VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics; else "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics; fi
+          if [ "$RUNNER_OS" = "Windows" ]; then retry "$VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics; else retry "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics; fi
 
       # Built libraries are kept between runs (the first build compiles every library: about 20 minutes).
       - name: Restore built libraries
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/../vcpkg-cache
           key: vcpkg-${{ matrix.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'triplets/**') }}-${{ github.run_id }}
@@ -76,12 +78,12 @@ jobs:
 
       - name: Save built libraries
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}/../vcpkg-cache
           key: vcpkg-${{ matrix.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'triplets/**') }}-${{ github.run_id }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: OpenRasa-${{ matrix.name }}
           path: |
@@ -97,7 +99,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: OpenRasa-*
           path: packages

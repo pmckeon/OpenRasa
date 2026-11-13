@@ -444,6 +444,7 @@ public:
     // the map's edge).
     float shadowExtent = 35.84f;   // half width in metres
     static constexpr float shadowDepth = 400.0f;
+    static constexpr float shadowUpSun = 300.0f;   // the sun map's near plane, toward the sun from the point ahead (0x00c2bb60)
     float shadowAhead = 27.37f;    // centre: metres ahead of the camera, horizontally
     void record(SDL_GPUCommandBuffer* commands);
     // record() on the renderer's own thread (OpenRasa: retail's NVIDIA driver does the equivalent work on its own worker thread - the
